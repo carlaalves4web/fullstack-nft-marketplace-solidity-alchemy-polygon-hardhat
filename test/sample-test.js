@@ -132,7 +132,7 @@ describe("NFT", function () {
       }
       return item
     }))
-
+   
     expect(items.length == 1)
   });
 
@@ -142,6 +142,65 @@ describe("NFT", function () {
     await marketplace.connect(buyer).sellMarketItem(1, nft.address, {value: listingFees})
     const owner = await nft.ownerOf(1)
     assert.equal(owner, buyer.address)
+
+
+    let items = await marketplace.fetchAllItems()
+    
+    items = await Promise.all(items.map(async i => {
+      const tokenUri = await nft.tokenURI(i.tokenId);
+      let item = {
+        id: i.itemId.toString(),
+        tokenId: i.tokenId.toString(),
+        owner: i.owner,
+        lastSeller: i.lastSeller,
+        price: i.price.toString(),
+        onSale: i.onSale,
+        tokenUri
+      }
+      return item
+    }))
+
+    expect(items.filter(item => item.onSale == true).length == 0)
+    
   })
 
+  it("Should fail selling the NFT", async function(){
+    const [_, buyer] = await ethers.getSigners();
+    const listingFees = ethers.utils.parseUnits('0', 'ether');
+    let owner;
+    try{
+      await marketplace.connect(buyer).sellMarketItem(2, nft.address, {value: listingFees})
+      owner = await nft.ownerOf(2)
+    }catch(e){
+    }
+   
+    
+    assert.notEqual(owner, buyer.address)
+  })
+
+  it("Should see after sales details on market item", async function(){
+    const [owner, buyer] = await ethers.getSigners();
+    let items = await marketplace.fetchAllItems()
+    
+    items = await Promise.all(items.map(async i => {
+      const tokenUri = await nft.tokenURI(i.tokenId);
+      let item = {
+        id: i.itemId.toString(),
+        tokenId: i.tokenId.toString(),
+        owner: i.owner,
+        lastSeller: i.lastSeller,
+        price: i.price.toString(),
+        onSale: i.onSale,
+        tokenUri
+      }
+      return item
+    }))
+    const item = items[0];
+    
+    assert.equal(item.owner, buyer.address)
+    assert.notEqual(item.lastPrice, '0')
+    assert.equal(item.price, '0')
+    assert.equal(item.lastSeller, owner.address)
+    assert.equal(item.onSale, false)
+  })
 });
